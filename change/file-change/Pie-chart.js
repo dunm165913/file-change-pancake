@@ -1,74 +1,106 @@
-HTMLView
+import React from 'react'
+import { View } from 'react-native'
+import { Svg, Rect, Text, G, Path } from 'react-native-svg'
+import AbstractChart from './abstract-chart'
 
-var React = require('react')
-var ReactNative = require('react-native')
-var htmlToElement = require('./htmlToElement')
-var {
-  Linking,
-  StyleSheet,
-  Text,
-} = ReactNative
+const Pie = require('paths-js/pie')
 
-class HTMLView extends React.Component {
-
-  state = {
-    element: null
-  }
-
-  UNSAFE_componentWillReceiveProps(nextProps) {
-    if (this.props.value !== nextProps.value) {
-      this.startHtmlRender(nextProps.value)
-    }
-  }
-
-  componentDidMount() {
-    this.mounted = true
-    this.startHtmlRender(this.props.value)
-  }
-
-  componentWillUnmount() {
-    this.mounted = false
-  }
-
-  startHtmlRender(value) {
-    if (!value) return this.setState({ element: null })
-
-    var opts = {
-      linkHandler: this.props.onLinkPress,
-      styles: Object.assign({}, baseStyles, this.props.stylesheet),
-      customRenderer: this.props.renderNode,
-    }
-
-    htmlToElement(value, opts, (err, element) => {
-      if (err) return this.props.onError(err)
-
-      if (this.mounted) this.setState({ element })
-    })
-  }
-
+class PieChart extends AbstractChart {
   render() {
-    if (this.state.element) {
-      return <Text children={this.state.element} />
-    }
-    return <Text />
+    const { style = {}, backgroundColor, absolute = false } = this.props
+    const { borderRadius = 0 } = style
+    const chart = Pie({
+      center: this.props.center || [0, 0],
+      r: 0,
+      R: this.props.height / 2.5,
+      data: this.props.data,
+      accessor: x => {
+        return x[this.props.accessor]
+      }
+    })
+    const total = this.props.data.reduce((sum, item) => {
+      return sum + item[this.props.accessor]
+    }, 0)
+    const slices = chart.curves.map((c, i) => {
+      let value
+      if (absolute) {
+        value = c.item[this.props.accessor]
+      } else {
+        if (total === 0) {
+          value = 0 + '%';
+        } else {
+          value = Math.round((100 / total) * c.item[this.props.accessor]) + '%';
+        }
+      }
+
+      return (
+        <G key={Math.random()}>
+          <Path d={c.sector.path.print()} fill={c.item.color} />
+          <Rect
+            width="16px"
+            height="16px"
+            fill={c.item.color}
+            rx={8}
+            ry={8}
+            x={this.props.width / 3 - 24}
+            y={
+              -(this.props.height / 2.5) +
+              ((this.props.height * 0.8) / this.props.data.length) * i +
+              12
+            }
+          />
+          <Text
+            fill={c.item.legendFontColor}
+            fontSize={c.item.legendFontSize}
+            x={this.props.width / 3}
+            y={
+              -(this.props.height / 2.5) +
+              ((this.props.height * 0.8) / this.props.data.length) * i +
+              12 * 2
+            }
+          >
+            {`${value} ${c.item.name.length > 15 ? c.item.name.slice(0, 15) + '...' : c.item.name}`}
+          </Text>
+        </G>
+      )
+    })
+    return (
+      <View
+        style={{
+          width: this.props.width,
+          height: this.props.height,
+          padding: 0,
+          ...style
+        }}
+      >
+        <Svg width={this.props.width} height={this.props.height}>
+          <G>
+            {this.renderDefs({
+              width: this.props.height,
+              height: this.props.height,
+              ...this.props.chartConfig
+            })}
+          </G>
+          <Rect
+            width="100%"
+            height={this.props.height}
+            rx={borderRadius}
+            ry={borderRadius}
+            fill={backgroundColor}
+          />
+          <G
+            x={
+              this.props.width / 5 +
+              Number(this.props.paddingLeft ? this.props.paddingLeft : 0)
+            }
+            y={this.props.height / 2}
+          >
+            {slices}
+          </G>
+        </Svg>
+      </View>
+    )
   }
 }
 
-var boldStyle = { fontWeight: '500' }
-var italicStyle = { fontStyle: 'italic' }
-var codeStyle = { fontFamily: 'Menlo' }
-
-var baseStyles = StyleSheet.create({
-  b: boldStyle,
-  strong: boldStyle,
-  i: italicStyle,
-  em: italicStyle,
-  pre: codeStyle,
-  code: codeStyle,
-  a: {
-    fontWeight: '500',
-    color: '#007AFF',
-  },
-})
-
-export default HTMLView
+export default PieChart

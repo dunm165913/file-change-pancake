@@ -160,3 +160,5 @@ class BarChart extends AbstractChart {
 }
 
 export default BarChart
+
+

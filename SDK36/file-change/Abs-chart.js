@@ -239,3 +239,4 @@ class AbstractChart extends Component {
 
 export default AbstractChart
 
+
